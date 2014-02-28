@@ -1,0 +1,19 @@
+function [ z ] = Whiten( x )
+%WHITEN Whiten the signal x (i.e othronormalize the signals)
+%   Perform a Gram-Schmidt orthonormalisation
+    numLines = size(x,1);
+    numRows = size(x,2);
+    z = x;
+
+    C = corr(z');
+    
+    % orthonormalize
+    
+    for i=1:numLines
+        for j=1:(i-1)
+            z(i,:) = z(i,:) - (C(i,j)/C(j,j)) * z(j,:);
+        end
+        z(i,:) = 
+    end
+end
+
