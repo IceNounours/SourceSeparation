@@ -7,7 +7,7 @@ function [ z ] = Whiten( x )
     
     z = x;
 
-    C = z*z'/fNumRows;
+    C = z*z' ./ fNumRows;
     
     % orthogonalize
     for i=1:numLines
