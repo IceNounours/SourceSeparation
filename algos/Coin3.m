@@ -14,7 +14,7 @@ function [ W ] = Coins3( x, p, q, r, s )
     z(3,:) = x(3,:) - c(3,:);
     
     m = 2.0 * c;
-    B0 = m;% A1+A2+A3
+    B0 = c;% (A1+A2+A3)/2
     n0 = normc(c);%normalized vector in one of the separating planes
     
     B = zeros( numSignals, 4);
@@ -23,13 +23,14 @@ function [ W ] = Coins3( x, p, q, r, s )
     N(:,1)= n0;
     
     [ U, O, V ] = SeparatePoints( z, c, 6.0 * s );
+    V0 = V;
     for i=1:3
         
         figure;
         PlotSignal( V );
         title('V avant création du plan');
         
-        n = FindPlaneNormal( V, n0 );
+        n = FindPlaneNormal( V, V0, n0 );
         N(:,i+1) = n;
         
         % vector orienting the count
@@ -58,14 +59,144 @@ function [ W ] = Coins3( x, p, q, r, s )
         V = Op;
     end
     
+    d = Inf;
+    jopt = 8;
+    Copt = zeros( numSignals );
+    
+    for l=0:7
+        
+        S = zeros( numSignals, 1 );
+        C = zeros(numSignals);
+        
+        if( bitand(l, 1) ~= 0 )
+            S = S + B(:,2);
+            C(:,1) = B(:,2);
+        else
+            S = S - B(:,2);
+            C(:,1) = - B(:,2);
+        end
+        
+        if( bitand(l, 2) ~= 0 )
+            S = S + B(:,3);
+            C(:,2) = B(:,3);
+        else
+            S = S - B(:,3);
+            C(:,2) = - B(:,3);
+        end
+        
+        if( bitand(l, 4) ~= 0 )
+            S = S + B(:,4);
+            C(:,3) = B(:,4);
+        else
+            S = S - B(:,4);
+            C(:,3) = - B(:,4);
+        end
+        
+        d0 = dot( S-B(:,1), S-B(:,1) );
+        
+        if( d0 < d )
+            d = d0;
+            jopt = l;
+            Copt = C;
+        end
+    end
+    
+    
+    A(:,1) = Copt(:,1) + Copt(:,2);
+    A(:,2) = Copt(:,2) + Copt(:,3);
+    A(:,3) = Copt(:,3) + Copt(:,1);
+    
+    
+    % Convergence step
+    scale = 4.0;
+    steps = 0;
+    maxSteps = 100;
+    
+    e = m - sum(A,2);
+    
+    Br = zeros(numSignals, numSamples );
+    Ul = zeros(numSignals, numSamples );
+    Ap = zeros(numSignals, numSamples );
+    
+    while( (steps < maxSteps) && (norm(e) > norm(m)*0.0001) )
+        
+        prevE = e;
+        
+        numPointsBr = size(Br,2);
+        numPointsUl = size(Ul,2);
+        numPointsAp = size(Ap,2);
+
+        nUl = 0;
+        nBr = 0;
+        nAp = 0;
+    
+        if( numPointsAp > numSamples / 100 )
+            for j=1:numSamples
+                xx = x(1,j);
+                xy = x(2,j);
+                xz = x(3,j);
+
+                if ( ((xx-A(1,3))/(scale*s(1)))^2 + ((xy-A(2,3))/(scale*s(2)))^2 + ((xz-A(3,3))/(scale*s(3)))^2 < 1 )
+                    Ap(:,nAp+1) = x(:,j);
+                    nAp = nAp + 1;
+                end
+            end
+            
+            Ap = Ap(:,1:nAp);
+        end
+        
+        if( numPointsBr > numSamples / 100 )
+            for j=1:numSamples
+                xx = x(1,j);
+                xy = x(2,j);
+                xz = x(3,j);
+
+                if ( ((xx-A(1,2))/(scale*s(1)))^2 + ((xy-A(2,2))/(scale*s(2)))^2 + ((xz-A(3,2))/(scale*s(3)))^2 < 1 )
+                    Br(:,nBr+1) = x(:,j);
+                    nBr = nBr + 1;
+                end
+            end
+            
+            Br = Br(:,1:nBr);
+        end
+              
+        if( numPointsUl > numSamples / 100 )
+            for j=1:numSamples
+                xx = x(1,j);
+                xy = x(2,j);
+                xz = x(3,j);
+
+                if ( ((xx-A(1,1))/(scale*s(1)))^2 + ((xy-A(2,1))/(scale*s(2)))^2 +((xz-A(3,1))/(scale*s(3)))^2 < 1 )
+                    Ul(:,nUl+1) = x(:,j);
+                    nUl = nUl + 1;
+                end
+            end
+            
+            Ul = Ul(:,1:nUl);
+        end
+        
+        % compute the vectors
+        A(:,3) = mean( Ap, 2 );
+        A(:,2) = mean( Br, 2 );
+        A(:,1) = mean( Ul, 2 );
+
+        steps = steps + 1;
+        e = m - sum(A,2);
+        
+        %if( dot(e,e) < dot(prevE,prevE) )
+            scale = scale * 0.9;
+        %end
+    end
+    
     figure;
     PlotSignal( z, 'b' );
     hold on;
     PlotVectors([ N(:,2) N(:,3) N(:,4) ], 'r' );
     hold on;
-    PlotVectors([ B(:,2) B(:,3) B(:,4) ], 'b' );
+    PlotVectors( A, 'b' );
     title('regions');
-    W = B(:,2:4);
+    
+    W = A;
 end
 
 function [U, O, V ] = SeparatePoints( z, u, s )
@@ -137,22 +268,23 @@ function [I, O ] = SeparatePointsFromPlane( z, n, s )
     O = O(:,1:nO);
 end
 
-function [ uu ] = FindPlaneNormal( z, n )
+function [ uu ] = FindPlaneNormal( z, z0, n )
 % Find the normal of a plane passing by the center of the cube and
 % containing the vector n
     numSignals = size( z, 1 );
-    nV = size( z, 2 );
+    nV = size( z0, 2 );
     
-    cV = z;
+    cV = z0;
     cV = normc(cV);
     
     N = ones( numSignals, nV);
     N(1,:) = N(1,:) .* n(1);
     N(2,:) = N(2,:) .* n(2);
     N(3,:) = N(3,:) .* n(3);
-    
     we = cross(cV, N);
-    uu = normc( we(:,1) );
+    
+    cv0 = cross( z(:,1), n );
+    uu = normc( cv0(:,1) );
     
     maxSteps = 8;
     for i = 1:maxSteps

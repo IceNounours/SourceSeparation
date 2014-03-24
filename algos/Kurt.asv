@@ -1,0 +1,37 @@
+function [ w ] = Kurt(z)
+%KURTOSIS find a first directing vector for whitened data z.
+%   Detailed explanation goes here
+
+    % Choose randomly a starting point
+    numSignals = size(z,1);
+    numSamples = size(z,2);
+    w = rand(numSignals, 1);
+    w = normc(w);
+    
+    % variation with the previous iteration
+    sdw = 10.0;
+    
+    sdwm = 0.1^2;
+    
+    o = ones( numSamples, 1 ) / numSamples;
+    
+    prevw = w;
+    while( (sdw > sdwm)
+    && (w ~= -prevw) )
+        prevw = w;
+        wz = (w')*z;
+        s3 = wz .* wz .* wz;
+        
+        x = zeros( numSignals, numSamples );
+        for i=1:numSignals
+            x(i,:)  = z(i,:) .* s3;
+        end
+        
+        m = x * o;
+        w = m - 3*w;
+        w = normc(w);
+        dw = w - prevw;
+        sdw = dot( dw, dw );
+    end
+end
+

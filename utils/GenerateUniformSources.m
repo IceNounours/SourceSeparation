@@ -6,8 +6,8 @@ function [ s ] = GenerateUniformSources( N, M, I )
 
     if( nargin == 2 )
         I = zeros(N,2);
-        I(:,1) =-0.5;
-        I(:,2) = 0.5;
+        I(:,1) = 0;
+        I(:,2) = 1;
     end
     
     s = rand( N, M );
