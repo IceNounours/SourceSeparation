@@ -1,4 +1,4 @@
-function [ P ] = CoinsU2Polys( x, numCoeffs )
+function [ P, M ] = CoinsU2PolysR( x, numCoeffs )
 %COINSU2POLYS Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -8,28 +8,32 @@ function [ P ] = CoinsU2Polys( x, numCoeffs )
     carre = GenerateUniformSources( numSignals, numSamples );
 
     dmax = max( dot(x,x) );
-    di = 0.5 * dmax * ones( numSignals, numSignals, numCoeffs );
+    de = 0.5 * dmax * ones( numSignals, numSignals, numCoeffs );
+    dm = 0.5 * dmax * ones( 1, numSignals );
     
     % initialize the vectors
+    M = mean( x, 2 );
     P = zeros( numSignals, numSignals, numCoeffs );
     for i = 1:numSignals
         for k = 1:numSignals
             for l = 1:numCoeffs
-                P(i,k,l) = di(i,k,l);
+                P(i,k,l) = de(i,k,l);
             end
         end
     end
     
-    kP = DistanceCompacte( ApplyDistortion(P, carre), x);
+    kP = DistanceCompacte( ApplyDistortionR(P, M, carre), x);
     
-    de = di;
-    maxSteps = 10;
+    maxSteps = 100;
     step = 0;
     while( step < maxSteps )
         
         kPprev = kP;
         Delta = zeros(numSignals, numSignals, numCoeffs);
+        DeltaM = zeros(1, numSignals);
+        
         Pt = zeros( numSignals, numSignals, numCoeffs );
+        Mt = zeros( 1, numSignals );
         
         for i=1:numSignals
             for k=1:numSignals
@@ -37,7 +41,7 @@ function [ P ] = CoinsU2Polys( x, numCoeffs )
                     for m=0:1% a changer
                         Pt(i,k,l) = P(i,k,l) + 2.0 * (m-0.5) * de(i,k,l);
 
-                        kPt = DistanceCompacte( ApplyDistortion(Pt, carre), x);
+                        kPt = DistanceCompacte( ApplyDistortionR(Pt, Mt, carre), x);
 
                         if( Meilleure( kPprev, kPt ) )
                             %found a better config
@@ -50,7 +54,24 @@ function [ P ] = CoinsU2Polys( x, numCoeffs )
             end
         end
         
-        if( any(Delta) )
+        for i=1:numSignals
+            for m=0:1% a changer
+                Mt(i) = Mt(i) + 2.0 * (m-0.5) * de(i,k,l);
+
+                kPt = DistanceCompacte( ApplyDistortionR(Pt, Mt, carre), x);
+
+                if( Meilleure( kPprev, kPt ) )
+                    %found a better config
+                    kP = kPt;
+                    P = Pt;
+                    DeltaM(i) = 2.0 * (m-0.5) * dm(i);
+                end
+            end
+        end
+        
+        aD = any( any( any(Delta) ) );
+        aDm = any(DeltaM);
+        if( aD || aDm )
             subStep = 0;
             maxSubSteps = 10;
             
@@ -63,14 +84,22 @@ function [ P ] = CoinsU2Polys( x, numCoeffs )
                     end
                 end
                 
-                kPt = DistanceCompacte( ApplyDistortion(Pt, carre), x);
+                for i=1:numSignals
+                    for m=0:1% a changer
+                        Mt(i) = M(i) + DeltaM(i);
+                    end
+                end
+                
+                kPt = DistanceCompacte( ApplyDistortionR(Pt, Mt, carre), x);
 
                 if( Meilleure( kPprev, kPt ))
                     %found a better config
                     kP = kPt;
                     P = Pt;
                     Delta = 1.1 * Delta;% increase delta
+                    DeltaM = 1.1 * DeltaM;
                     de = 1.1 * de;
+                    dm = 1.1 * dm;
                 else
                     break;
                 end
@@ -78,6 +107,7 @@ function [ P ] = CoinsU2Polys( x, numCoeffs )
             end
         else
             de = 0.9 * de;%decrease de.
+            dm = 0.9 * dm;
         end
         
         step = step + 1;
@@ -93,34 +123,6 @@ end
 function [k] = DistanceCompacte ( y, x )
     numSignals = size( x, 1 );
     numSamples = size( x, 2 );
-    
-%     yy = y;
-%     k = 0;
-%     ctrl = zeros (1, numSamples);
-%     for i = 1:numSamples
-%         dm = +Inf;
-%         ind = 1;
-%         
-%         xx = ones( numSignals, numSamples );
-%         for j=1:numSignals
-%             xx(j,:) = x(j,i) .* xx(j,:);
-%         end
-%         zz = xx - yy;
-%         dists = dot( zz, zz );%distance between x(:,i) and all the y
-%         
-%         for j = 1:numSamples
-%             m = dists( j );
-%             if ( (m < dm) && (ctrl(j) == 0) )
-%                 dm = m;
-%                 ind = j;
-%             end
-%         end
-%         
-%         ctrl(ind) = 1;
-%         if (dm>k)
-%             k=dm;
-%         end
-%     end
 
     yy = y;
     k = 0;

@@ -49,22 +49,22 @@ classdef QuadTree
 
                         if( ((triangleList(1, (i-1)*3 + 1 ) >= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 1 ) >= q.aabb.Center(2))) && ((triangleList(1, (i-1)*3 + 2 ) >= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 2 ) >= q.aabb.Center(2))) && ((triangleList(1, (i-1)*3 + 3 ) >= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 3 ) >= q.aabb.Center(2))) )
                              nUr = nUr + 1;
-                             Ur(:, (nUr-1)*3 + 1 ) = triangleList(:, (i-1)*3 + 1 );
+                             Ur(:, (nUr-1)*3 + 1 ) = triangleList(:, (i-1)*3 + 2 );
                              Ur(:, (nUr-1)*3 + 2 ) = triangleList(:, (i-1)*3 + 2 );
                              Ur(:, (nUr-1)*3 + 3 ) = triangleList(:, (i-1)*3 + 3 );
                         elseif( ((triangleList(1, (i-1)*3 + 1 ) >= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 1 ) <= q.aabb.Center(2))) && ((triangleList(1, (i-1)*3 + 2 ) >= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 2 ) <= q.aabb.Center(2))) && ((triangleList(1, (i-1)*3 + 3 ) >= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 3 ) <= q.aabb.Center(2))) )
                              nBr = nBr + 1;
-                             Br(:, (nBr-1)*3 + 1 ) = triangleList(:, (i-1)*3 + 1 );
+                             Br(:, (nBr-1)*3 + 1 ) = triangleList(:, (i-1)*3 + 2 );
                              Br(:, (nBr-1)*3 + 2 ) = triangleList(:, (i-1)*3 + 2 );
                              Br(:, (nBr-1)*3 + 3 ) = triangleList(:, (i-1)*3 + 3 );
                         elseif( ((triangleList(1, (i-1)*3 + 1 ) <= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 1 ) <= q.aabb.Center(2))) && ((triangleList(1, (i-1)*3 + 2 ) <= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 2 ) <= q.aabb.Center(2))) && ((triangleList(1, (i-1)*3 + 3 ) <= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 3 ) <= q.aabb.Center(2))) )
                              nBl = nBl + 1;
-                             Bl(:, (nBl-1)*3 + 1 ) = triangleList(:, (i-1)*3 + 1 );
+                             Bl(:, (nBl-1)*3 + 1 ) = triangleList(:, (i-1)*3 + 2 );
                              Bl(:, (nBl-1)*3 + 2 ) = triangleList(:, (i-1)*3 + 2 );
                              Bl(:, (nBl-1)*3 + 3 ) = triangleList(:, (i-1)*3 + 3 );
                         elseif( ((triangleList(1, (i-1)*3 + 1 ) <= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 1 ) >= q.aabb.Center(2))) && ((triangleList(1, (i-1)*3 + 2 ) <= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 2 ) >= q.aabb.Center(2))) && ((triangleList(1, (i-1)*3 + 3 ) <= q.aabb.Center(1)) && (triangleList(2, (i-1)*3 + 3 ) >= q.aabb.Center(2))) )
                              nUl = nUl + 1;
-                             Ul(:, (nUl-1)*3 + 1 ) = triangleList(:, (i-1)*3 + 1 );
+                             Ul(:, (nUl-1)*3 + 1 ) = triangleList(:, (i-1)*3 + 2 );
                              Ul(:, (nUl-1)*3 + 2 ) = triangleList(:, (i-1)*3 + 2 );
                              Ul(:, (nUl-1)*3 + 3 ) = triangleList(:, (i-1)*3 + 3 );
                         else
@@ -131,7 +131,7 @@ classdef QuadTree
         % we assume that the point can be in.
         function isIn = QuadTreeIsPointIn( q, point )
             
-            numTriangles = floor( size(q.Data, 2 ) / 3 );
+            numTriangles = size(q.Data, 2 );
             for i=1:numTriangles
 
                 A = q.Data(:, (i-1)*3 + 1);
@@ -146,19 +146,42 @@ classdef QuadTree
                 uv = [ v1 v2 ] \ tp;
                 uv = uv - [ 0.5; 0.5 ];
 
-                if( (abs(uv(1)) <= 0.5) && (abs(uv(2)) <= 0.5) && (uv(1)+uv(2) <= 0) )
-                    isIn = true;
+                isIn = (abs(uv(1)) <= 0.5) && (abs(uv(2)) <= 0.5) && (uv(1)+uv(2) <= 0);
+
+                if( isIn == true )
                     break;
                 end
             end
 
-            if( size(q.SubNodes) ~= 0 )
-                for i=1:4
-                	canBeIn = QuadTreePointCanBeIn(q.SubNodes(i), point);
-                    if( canBeIn )
-                        isIn = QuadTreeIsPointIn( q.SubNodes(i), point );
-                        break;% can't be in another node
-                    end
+            canBeIn = false;
+            i = 1;
+            while( (isIn == false ) && (canBeIn == false) && (i <= 4) )
+            end
+            if( (isIn == false) && (size(q.SubNodes) ~= 0) && canBeIn == false )
+                canBeIn = QuadTreeCanBeIn(q.SubNodes(1), point);
+                if( canBeIn )
+                    isIn = QuadTreeIsPointIn( q.SubNodes(1), point );
+                end
+            end
+
+            if( (isIn == false) && (size(q.SubNodes) ~= 0) && canBeIn == false  )
+                canBeIn = QuadTreeCanBeIn(q.SubNodes(2), point);
+                if( canBeIn )
+                    isIn = QuadTreeIsPointIn( q.SubNodes(2), point );
+                end
+            end
+
+            if( (isIn == false) && (size(q.SubNode1) ~= 0) && canBeIn == false )
+                canBeIn = QuadTreeCanBeIn(q.SubNodes(3), point);
+                if( canBeIn )
+                    isIn = QuadTreeIsPointIn( q.SubNodes(3), point );
+                end
+            end
+
+            if( (isIn == false) && (size(q.SubNodes) ~= 0) && canBeIn == false  )
+                canBeIn = QuadTreeCanBeIn(q.SubNodes(4), point);
+                if( canBeIn )
+                    isIn = QuadTreeIsPointIn( q.SubNodes(4), point );
                 end
             end
             

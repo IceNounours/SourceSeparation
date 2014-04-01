@@ -18,17 +18,17 @@ function [ P ] = CoinsU2PolysFast( x, numCoeffs )
         end
     end
     
-    carre = CreateMesh( 32, 32);
-    grid = TransformedGrid( ApplyDistortion(P, carre) );
-    [ nW, sW ] = CompterPointsCalculerSurface( grid, x );
+    numPointsPerNode = 32;
+    gridSize = 32;
+    pq = PointQuadTree( numPointsPerNode, x );
+    carre = CreateMesh( gridSize, gridSize );
+    tcarre = ApplyDistortion(P, carre);
+    [ nW, sW ] = CompterPointsCalculerSurface( pq, tcarre );
     
     de = di;
-    maxSteps = 1000;
+    maxSteps = 10;
     step = 0;
     while( step < maxSteps )
-        
-        nWprev = nW;
-        sWprev = sW;
         
         Delta = zeros(numSignals, numSignals, numCoeffs);
         Pt = zeros( numSignals, numSignals, numCoeffs );
@@ -39,10 +39,10 @@ function [ P ] = CoinsU2PolysFast( x, numCoeffs )
                     for m=0:1% a changer
                         Pt(i,k,l) = P(i,k,l) + 2.0 * (m-0.5) * de(i,k,l);
 
-                            grid = TransformedGrid( ApplyDistortion(Pt, carre) );
-                            [ nWt, sWt ] = CompterPointsCalculerSurface( grid, x );
+                        tcarre = ApplyDistortion(Pt, carre);
+                        [ nWt, sWt ] = CompterPointsCalculerSurface( pq, tcarre );
 
-                        if( Meilleure( nWprev, sWprev, nWt, sWt) )
+                        if( Meilleure( nW, sW, nWt, sWt) )
                             %found a better config
                             nW = nWt;
                             sW = sWt;
@@ -67,10 +67,10 @@ function [ P ] = CoinsU2PolysFast( x, numCoeffs )
                     end
                 end
                 
-                grid = TransformedGrid( ApplyDistortion(Pt, carre) );
-                [ nWt, sWt ] = CompterPointsCalculerSurface( grid, x );
+                tcarre = ApplyDistortion(Pt, carre);
+                [ nWt, sWt ] = CompterPointsCalculerSurface( pq, tcarre );
 
-                if( Meilleure( nWprev, sWprev, nWt, sWt) )
+                if( Meilleure( nW, sW, nWt, sWt) )
                     %found a better config
                     nW = nWt;
                     sW = sWt;
@@ -98,15 +98,20 @@ function [ meilleure ] = Meilleure( nWprev, sWprev, nW, sW )
     meilleure = l2 > l1;
 end
 
-function [ nW, sW ] = CompterPointsCalculerSurface( tGrid, x )
-    numSamples = size( x, 2 );
+function [ nW, sW ] = CompterPointsCalculerSurface( pq, ttriangles )
+
+    nW = PointQuadTreeCompterPoints( pq, ttriangles );
+    sW = 0;
     
-    nW = 0;
-    sW = tGrid.surface;%surface
-    
-    for i=1:numSamples
-        if( TransformedGridIsPointIn( tGrid, x(:,i) ) )
-            nW = nW + 1;
-        end
+    numTriangles = floor( size( ttriangles, 2 ) / 3 );
+
+    for i=1:numTriangles
+
+        tl = ttriangles(:, (i-1)*3 + 1 : (i-1)*3 + 3);
+        v1 = tl(:,1)-tl(:,2);
+        v2 = tl(:,3)-tl(:,2);
+
+        sW = sW + abs( v1(1)*v2(2) - v1(2)*v2(1) );
     end
+    
 end
