@@ -4,18 +4,16 @@ function [ P ] = CoinsU2PolysFast( x, numCoeffs )
 
     numSamples = size( x, 2 );
     numSignals = size( x, 1 );
+    numVariablesToGuess = numSignals * numSignals * numCoeffs;
 
     dmax = max( dot(x,x) );
-    di = 0.5 * dmax * ones( numSignals, numSignals, numCoeffs );
+    di = 0.5 * dmax * ones( numSignals, numSignals * numCoeffs + 1);
     
     % initialize the vectors
-    P = zeros( numSignals, numSignals, numCoeffs );
-    for i = 1:numSignals
-        for k = 1:numSignals
-            for l = 1:numCoeffs
-                P(i,k,l) = di(i,k,l);
-            end
-        end
+    mx = mean( x, 2 );
+    P = zeros(numSignals, numSignals * numCoeffs + 1);
+    for i=1:numSignals
+        P(i, 1 + numCoeffs * i ) = dmax;
     end
     
     numPointsPerNode = 32;
@@ -26,29 +24,28 @@ function [ P ] = CoinsU2PolysFast( x, numCoeffs )
     [ nW, sW ] = CompterPointsCalculerSurface( pq, tcarre );
     
     de = di;
-    maxSteps = 10;
+    maxSteps = 1000;
     step = 0;
     while( step < maxSteps )
         
-        Delta = zeros(numSignals, numSignals, numCoeffs);
-        Pt = zeros( numSignals, numSignals, numCoeffs );
+        Delta = zeros(numSignals, numSignals * numCoeffs + 1);
+        Pt = zeros( numSignals, numSignals * numCoeffs + 1 );
         
         for i=1:numSignals
-            for k=1:numSignals
-                for l=1:numCoeffs
-                    for m=0:1% a changer
-                        Pt(i,k,l) = P(i,k,l) + 2.0 * (m-0.5) * de(i,k,l);
+            for k=1:numCoeffs*numSignals
+                for m=0:1% a changer
+                    Pt(i,k+1) = P(i,k+1) + 2.0 * (m-0.5) * de(i,k+1);
+                    Pt(:,1) = InfererCoefficientsConstants( Pt, mx );% infere the constants
+                    
+                    tcarre = ApplyDistortion(Pt, carre);
+                    [ nWt, sWt ] = CompterPointsCalculerSurface( pq, tcarre );
 
-                        tcarre = ApplyDistortion(Pt, carre);
-                        [ nWt, sWt ] = CompterPointsCalculerSurface( pq, tcarre );
-
-                        if( Meilleure( nW, sW, nWt, sWt) )
-                            %found a better config
-                            nW = nWt;
-                            sW = sWt;
-                            P = Pt;
-                            Delta(i,k,l) = 2.0 * (m-0.5) * de(i,k,l);
-                        end
+                    if( Meilleure( nW, sW, nWt, sWt) )
+                        %found a better config
+                        nW = nWt;
+                        sW = sWt;
+                        P = Pt;
+                        Delta(i,k+1) = 2.0 * (m-0.5) * de(i,k+1);
                     end
                 end
             end
@@ -60,12 +57,11 @@ function [ P ] = CoinsU2PolysFast( x, numCoeffs )
             
             while( (subStep < maxSubSteps) )
                 for i=1:numSignals
-                    for k=1:numSignals
-                        for l=1:numCoeffs %continue along Delta
-                            Pt(i,k,l) = P(i,k,l) + Delta(i,k,l);
-                        end
+                    for k=1:numCoeffs*numSignals %continue along Delta
+                        Pt(i,k+1) = P(i,k+1) + Delta(i,k+1);
                     end
                 end
+                Pt(:,1) = InfererCoefficientsConstants( Pt, mx );% infere the constants
                 
                 tcarre = ApplyDistortion(Pt, carre);
                 [ nWt, sWt ] = CompterPointsCalculerSurface( pq, tcarre );
@@ -92,6 +88,13 @@ function [ P ] = CoinsU2PolysFast( x, numCoeffs )
     
 end
 
+function C = InfererCoefficientsConstants( P, mx )
+    co = [ 1 1/3 1 1/3; 1 1/3 1 1/3 ];
+    p = P(:,2:end);
+    s = sum( co .* p, 2 );
+    C = mx - s;
+end
+
 function [ meilleure ] = Meilleure( nWprev, sWprev, nW, sW )
     l1 = nWprev/sWprev;
     l2 = nW/sW;
@@ -101,10 +104,10 @@ end
 function [ nW, sW ] = CompterPointsCalculerSurface( pq, ttriangles )
 
     nW = PointQuadTreeCompterPoints( pq, ttriangles );
-    sW = 0;
     
+    % compute the surface
+    sW = 0;
     numTriangles = floor( size( ttriangles, 2 ) / 3 );
-
     for i=1:numTriangles
 
         tl = ttriangles(:, (i-1)*3 + 1 : (i-1)*3 + 3);

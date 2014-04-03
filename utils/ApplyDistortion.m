@@ -1,12 +1,9 @@
 function [ y ] = ApplyDistortion( P, x )
 %APPLYDISTORTION P: polynoms to use, x: signal to distort
-% P(i,j,k) : i -> output signal in which it is used,
-%            j -> input signal to which it is applied
-%            k -> k-th coefficient to which it is applied
 
     numSignals = size(x,1);
     numSamples = size(x,2);
-    numCoeffs = size(P,3);
+    numCoeffs = ( size(P,2) - 1 ) / numSignals;
     
     y = zeros( numSignals, numSamples );
 
@@ -14,13 +11,14 @@ function [ y ] = ApplyDistortion( P, x )
         for l=1:numSignals
             yy = zeros( 1, numSamples );
             z0 = x(l,:);
-            z = ones(1, numSamples );
             for k=numCoeffs:-1:1
-                yy = yy .* z0 + P(i,l,k) .* z;
+                yy = (yy + P( i, 1 + numCoeffs * (l-1) + k )) .* z0;
             end
             
             y(i,:) = y(i,:) + yy;
         end
+        
+        y(i,:) = y(i,:) + P( i, 1 ) * ones( 1, numSamples );
     end
 end
 

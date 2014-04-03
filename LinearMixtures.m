@@ -2,13 +2,13 @@ close all;
 clear;
 
 % Demonstration settings
-numVariables = 3;
-numSamples = 10000;
+numVariables = 2;
+numSamples = 100000;
 fNumSamples = single(numSamples);
 fInvNumSamples = 1/fNumSamples;
 
 % Generate the signals
-s = GenerateUniformSources( numVariables, numSamples );
+s = GenerateUniformSources( numVariables, numSamples, [ -0.5 0.5; -0.5 0.5] );
 Cs = s*s'*fInvNumSamples;
 
 % Wether or not we want to show the original data
@@ -20,7 +20,7 @@ if( showOriginalSignals )
 end
 
 % Mixture
-A = [ 1, 0.5, 0.5; 0, 1, 0; 0, 0, 1 ];
+A = [ -1, 0.7; 0, 1 ];
 
 x = GenerateLinearMixture( A, s );
 Cx = x*x'*fInvNumSamples;
@@ -51,7 +51,7 @@ figure;
 PlotSignal(z);
 hold on;
 PlotVectors(W);
-title('Basis vector');
+title('Basis vector (kurt)');
 
 % Récupération des vecteurs de la nouvelle base
 Wb = KurtSymmetricOrtho( z );
@@ -59,7 +59,8 @@ figure;
 PlotSignal(z);
 hold on;
 PlotVectors(Wb);
-title('Basis vector (Symmetric orthogonalization)');
+title('Basis vector (Kurt Symmetric orthogonalization)');
+
 
 % Récupération des vecteurs de la nouvelle base
 Wc = Negen( z );
@@ -81,13 +82,13 @@ title('Basis vector Negentropy (Symmetric orthogonalization)');
 x = W' *  z;
 figure;
 PlotSignal(x);
-title('Donnees demixees');
+title('Donnees demixees (kurt)');
 
 % Données démixées
 xb = Wb' *  z;
 figure;
 PlotSignal(xb);
-title('Donnees demixees (Symmetric orthogonalization)');
+title('Donnees demixees (kurt Symmetric orthogonalization)');
 
 % Données démixées
 xc = Wc' *  z;
@@ -96,7 +97,7 @@ PlotSignal(xc);
 title('Donnees demixees Negentropy');
 
 % Données démixées
-xd = Wd *  z;
+xd = Wd' *  z;
 figure;
 PlotSignal(xd);
 title('Donnees demixees Negentropy (Symmetric orthogonalization)');

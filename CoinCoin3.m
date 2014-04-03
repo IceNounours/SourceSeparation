@@ -17,7 +17,7 @@ s = GenerateBernouilliSources( numVariables, numSamples, [ p q r ] );
 n = sigma .* randn( numVariables, numSamples );
 
 A = randn( numVariables );
-A = [ 1 0 0; 0 1 0; 0 0 1 ];
+A = [ 1 1 0; 0 1 0; 0 1 1 ];
 
 % mixed signal
 x = A*s + n;

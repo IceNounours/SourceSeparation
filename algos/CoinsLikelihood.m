@@ -65,11 +65,6 @@ function [ W ] = CoinsLikelihood( x, p, q, s1, s2 )
     A2 = mean( Br, 2 );
     A1 = mean( Ul, 2 );
     
-%     % compute the error and distribute part of it to the vectors
-%     e = m - (A1+A2);
-%     A1 = A1 + 0.33 * e;
-%     A2 = A2 + 0.33 * e;
-    
     scale = 4.0;
     steps = 0;
     maxSteps = 100;
@@ -118,17 +113,10 @@ function [ W ] = CoinsLikelihood( x, p, q, s1, s2 )
         A2 = mean( Br, 2 );
         A1 = mean( Ul, 2 );
 
-%         % compute the error and distribute part of it to the vectors
-%         e = m - (A1+A2);
-%         A1 = A1 + 0.33 * e;
-%         A2 = A2 + 0.33 * e;
-
         steps = steps + 1;
         e = m - (A1+A2);
         
-        %if( dot(e,e) < dot(prevE,prevE) )
-            scale = scale * 0.9;
-        %end
+        scale = scale * 0.9;
     end
     
     W = [ A1, A2 ];
@@ -146,153 +134,9 @@ function [ W ] = CoinsLikelihood( x, p, q, s1, s2 )
     hold on;
     PlotVectors( m, 'b' );
     title('Regions');
-    
-    
-%     prevW = zeros( numSignals );
-%     
-%     U = zeros( numSignals, 1 );
-%     nU = 0;
-%     D = zeros( numSignals, 1 );
-%     nD = 0;
-%     for i=1:numSamples
-%         
-%         xc = x(:,i);
-%         xc = normc(xc);
-%         d = det( [xc c]);
-%         
-%         if( d > 0 )
-%             nU = nU + 1;
-%             U = U + xc;
-%         elseif ( d < 0 )
-%             nD = nD + 1;
-%             D = D + xc;
-%         end
-%     end
-%     
-%     U = U / nU;
-%     D = D / nD;
-%     
-%     W = [ U D ];
-%     
-%     figure;
-%     PlotSignal( x );
-%     hold on;
-%     Plotvectors( W );
-%     title('Vecteurs originaux');
-%     
-%     steps = 0;
-%     maxSteps = 100;
-%     while( (min( abs(dot(W,prevW)) ) < 0.9999) && (steps < maxSteps) )
-%         prevW = W;
-%         W(:,1) = W(:,1) + 0.5 * dl( x, p, q, s1, s2, W(:,1), m );
-%         W(:,2) = m - W(:,1);
-%         steps = steps + 1 ;
-%     end
 end
 
 function [ v ] = perp(x)
     v(1) = x(2);
     v(2) = -x(1);
-end
-
-function [ r ] = pn( x, s )
-    r = gaussmf( x./s, [1 0 ] ) ./ s;
-end
-function [ r ] = px1( x, p, q, s1, s2, a)
-
-    numSamples = size(x, 2 );
-    
-    x1 = x(1,:);
-    x2 = x(2,:);
-    xb1 = x1-a(1);
-    xb2 = x2-a(2);
-    p1 = pn(xb1, s1);
-    p2 = pn(xb2, s2);
-    r = q*(1-p).*p2.*p1;
-    
-    for i= 1:numSamples
-        if( r(i) < 0.1 )
-            r(i) = 0.1;
-        end
-    end
-end
-
-function [ r ] = px2( x, p, q, s1, s2, a, m )
-
-    numSamples = size(x, 2 );
-    
-    p1 = pn(x(1,:)+a(1)-m(1), s1);
-    p2 = pn(x(2,:)-m(2)+a(2), s2);
-    r = p*(1-q).*p2.*p1;
-    
-    for i= 1:numSamples
-        if( r(i) < 0.1 )
-            r(i) = 0.1;
-        end
-    end
-end
-
-function [ r ] = px3( x, p, q, s1, s2 )
-
-    numSamples = size(x, 2 );
-    
-    p1 = pn(x(1,:), s1);
-    p2 = pn(x(2,:), s2);
-    r = p*q.*p1.*p2;
-    
-    for i= 1:numSamples
-        if( r(i) < 0.1 )
-            r(i) = 0.1;
-        end
-    end
-end
-
-function [ r ] = px4( x, p, q, s1, s2, m )
-
-    numSamples = size(x, 2 );
-    
-    p1 = pn(x(1,:)-m(1), s1);
-    p2 = pn(x(2,:)-m(2), s2);
-    r = (1-p)*(1-q).*p1.*p2;
-    
-    for i= 1:numSamples
-        if( r(i) < 0.1 )
-            r(i) = 0.1;
-        end
-    end
-end
-
-function [ r ] = px( x, p, q, s1, s2, a, m )
-
-    p1 = px1( x, p, q, s1, s2, a );
-    p2 = px2( x, p, q, s1, s2, a, m );
-    p3 = px3( x, p, q, s1, s2 );
-    p4 = px4( x, p, q, s1, s2, m );
-    
-    r = p1 + p2 + p3 + p4;
-end
-
-function [ r ] = dpxda1( x, p, q, s1, s2, a, m )
-
-    r = px1( x, p, q, s1, s2, a ) .* (x(1,:) - a(1)) ./ (s1*s1);
-    r = r - px2( x, p, q, s1, s2, a, m ) .* (x(1,:) + a(1) - m(1) ) ./ (s1*s1);
-end
-
-function [ r ] = dpxda2( x, p, q, s1, s2, a, m )
-
-    r = px1( x, p, q, s1, s2, a ) .* (x(2,:) - a(2)) ./ (s2*s2);
-    r = r - px2( x, p, q, s1, s2, a, m ) .* (x(2,:) + a(2) - m(2) ) ./ (s2*s2);
-end
-
-function [ G ]= dl( x, p, q, s1, s2, a, m )
-
-    numSamples = size( x, 2 );
-    numSignals = size( x, 1 );
-    
-    R = px( x, p, q, s1, s2, a, m );
-    T = zeros( numSignals, numSamples );
-    T(1,:) = dpxda1( x, p, q, s1, s2, a, m ) ./ R;
-    T(2,:) = dpxda2( x, p, q, s1, s2, a, m ) ./ R;
-    
-    G = sum( T, 2 );
 end
